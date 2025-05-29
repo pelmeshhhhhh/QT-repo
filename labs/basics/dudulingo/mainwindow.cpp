@@ -1,18 +1,71 @@
 #include "mainwindow.h"
 
+DifficultyDialog::DifficultyDialog(QString currentDifficulty, QWidget *parent)
+    : QDialog(parent) {
+    setWindowTitle("Выбор уровня сложности");
+    setModal(true);
+
+    QVBoxLayout *layout = new QVBoxLayout(this);
+
+    easyRadio = new QRadioButton("Легко", this);
+    mediumRadio = new QRadioButton("Средне", this);
+    hardRadio = new QRadioButton("Тяжело", this);
+
+    if (currentDifficulty == "Легко") {
+        easyRadio->setChecked(true);
+    } else if (currentDifficulty == "Тяжело") {
+        hardRadio->setChecked(true);
+    } else {
+        mediumRadio->setChecked(true);
+    }
+
+    layout->addWidget(easyRadio);
+    layout->addWidget(mediumRadio);
+    layout->addWidget(hardRadio);
+
+    QDialogButtonBox *buttons = new QDialogButtonBox(
+        QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+        this
+        );
+    connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+
+    layout->addWidget(buttons);
+}
+
+QString DifficultyDialog::selectedDifficulty() const {
+    if (easyRadio->isChecked()) {
+        return "Легко";
+    } else if (mediumRadio->isChecked()) {
+        return "Средне";
+    } else {
+        return "Тяжело";
+    }
+}
+
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
+    : QMainWindow(parent), currentDifficulty("Средне")
 {
     centralWidget = new QWidget();
+    QVBoxLayout *layout = new QVBoxLayout();
     QHBoxLayout *mainLayout = new QHBoxLayout(centralWidget);
     QVBoxLayout *buttonLayout = new QVBoxLayout();
 
-    centralWidget->setLayout(mainLayout);
+    centralWidget->setLayout(layout);
 
     grammar = new QPushButton("Grammar");
     translate = new QPushButton("Translate");
     profile = new QPushButton("Profile");
     labelScore = new QLabel("0");
+
+    settingsMenu = menuBar()->addMenu("Настройки");
+
+    QAction *difficultyAction = new QAction("Уровень сложности", this);
+    connect(difficultyAction, &QAction::triggered, this, &MainWindow::changeDifficulty);
+    settingsMenu->addAction(difficultyAction);
+    QAction *info = new QAction("Справка", this);
+    settingsMenu->addAction(info);
+    connect(info, &QAction::triggered, this, &MainWindow::showInfo);
 
     stack = new QStackedWidget;
     QWidget *page1 = new QWidget;
@@ -148,7 +201,7 @@ MainWindow::MainWindow(QWidget *parent)
     QVBoxLayout *page1Layout = new QVBoxLayout;
     progressBar1 = new QProgressBar();
     progressBar1->setMinimum(0);
-    progressBar1->setMaximum(5);
+    progressBar1->setMaximum(7);
     page1Layout->addWidget(progressBar1);
     page1Layout->addWidget(new QLabel("Выбери правильный варинат ответа"));
     question = new QLabel("Question");
@@ -171,7 +224,7 @@ MainWindow::MainWindow(QWidget *parent)
     QVBoxLayout *page2Layout = new QVBoxLayout();
     progressBar = new QProgressBar();
     progressBar->setMinimum(0);
-    progressBar->setMaximum(5);
+    progressBar->setMaximum(7);
     page2Layout->addWidget(progressBar);
     page2Layout->addWidget(new QLabel("Переведи предложение"));
     sent = new QLabel("Sentence");
@@ -217,10 +270,10 @@ MainWindow::MainWindow(QWidget *parent)
     page3Layout->addWidget(label2);
     progressBar2 = new QProgressBar();
     progressBar2->setMinimum(0);
-    progressBar2->setMaximum(5);
+    progressBar2->setMaximum(7);
     progressBar3 = new QProgressBar();
     progressBar3->setMinimum(0);
-    progressBar3->setMaximum(5);
+    progressBar3->setMaximum(7);
     page3Layout->addWidget(new QLabel("Grammar"));
     page3Layout->addWidget(progressBar2);
     page3Layout->addWidget(new QLabel("Translation"));
@@ -261,36 +314,41 @@ MainWindow::MainWindow(QWidget *parent)
     mainLayout->addLayout(buttonLayout);
     mainLayout->addWidget(stack, 1);
 
+    layout->addWidget(settingsMenu);
+    layout->addLayout(mainLayout);
+
+
     std::vector<size_t> indices(eng.size());
+    std::vector<size_t> ind(ques.size());
+
     std::iota(indices.begin(), indices.end(), 0);
 
-    out_index.resize(6);
+    out_index.resize(10);
 
     std::random_device rd;
     std::mt19937 gen(rd());
 
-    std::sample(indices.begin(), indices.end(), out_index.begin(), 6, gen);
+    std::sample(indices.begin(), indices.end(), out_index.begin(), 10, gen);
 
     random_index = out_index[0];
     random_element = eng[random_index];
     sent->setText(random_element);
 
-    std::vector<size_t> ind(ques.size());
     std::iota(ind.begin(), ind.end(), 0);
 
-    out_index1.resize(5);
+    out_index1.resize(10);
 
     std::random_device rd1;
     std::mt19937 gen1(rd1());
 
-    std::sample(ind.begin(), ind.end(), out_index1.begin(), 5, gen1);
+    std::sample(ind.begin(), ind.end(), out_index1.begin(), 10, gen1);
 
     random_index1 = out_index1[0];
     random_element1 = ques[random_index1];
 
     buttonLayout->setContentsMargins(10, 10, 10, 10);
-    mainLayout->setContentsMargins(0, 0, 0, 0);
-    mainLayout->setSpacing(10);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(10);
 
     stack->setCurrentIndex(2);
 
@@ -311,11 +369,12 @@ void MainWindow::showSentence() {
     }
 
     sent->setText(random_element);
+    difficultyChoosen = true;
 }
 
 void MainWindow::checkTranslation() {
     if (rus[random_index] == textEdit->toPlainText()) {
-        if (count < 4) {
+        if (count < tasks - 1) {
             count++;
             progressBar->setValue(count);
             progressBar2->setValue(count);
@@ -327,7 +386,7 @@ void MainWindow::checkTranslation() {
             random_index = out_index[count - 1];
             random_element = eng[random_index];
             sent->setText(random_element);
-        } else if (count == 4) {
+        } else if (count == tasks - 1) {
             count++;
             progressBar->setValue(count);
             progressBar2->setValue(count);
@@ -351,10 +410,7 @@ void MainWindow::showQuestion() {
     radioButtonB->setText(answer[random_index1][1]);
     radioButtonC->setText(answer[random_index1][2]);
     radioButtonD->setText(answer[random_index1][3]);
-    // progressBar1->setValue(0);
-    // progressBar3->setValue(0);
-    // result1->setText(" ");
-    // count1 = 0;
+    difficultyChoosen = true;
 }
 
 void MainWindow::checkGrammar() {
@@ -362,7 +418,7 @@ void MainWindow::checkGrammar() {
         (variants[random_index1] == 2 && radioButtonB->isChecked()) ||
         (variants[random_index1] == 3 && radioButtonC->isChecked()) ||
         (variants[random_index1] == 4 && radioButtonD->isChecked())) {
-        if (count1 < 4) {
+        if (count1 < tasks - 1) {
             result1->setText("Так держать!");
             count1 = count1 + 1;
             progressBar1->setValue(count1);
@@ -375,7 +431,7 @@ void MainWindow::checkGrammar() {
             radioButtonD->setText(answer[random_index1][3]);
             totalScore += 10;
             labelScore->setText(QString::number(totalScore));
-        } else if (count1 == 4) {
+        } else if (count1 == tasks - 1) {
             count1 = count1 + 1;
             progressBar1->setValue(count1);
             progressBar3->setValue(count1);
@@ -457,4 +513,43 @@ void MainWindow::setIndex2() {
 
 void MainWindow::updateProfile() {
     label2->setText(QString::number(totalScore));
+}
+
+void MainWindow::changeDifficulty() {
+    if (difficultyChoosen == false) {
+    DifficultyDialog dialog(currentDifficulty, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        currentDifficulty = dialog.selectedDifficulty();
+        if (currentDifficulty == "Легко") {
+            tasks = 4;
+            progressBar->setMaximum(4);
+            progressBar1->setMaximum(4);
+            progressBar2->setMaximum(4);
+            progressBar3->setMaximum(4);
+        } else if (currentDifficulty == "Средне") {
+            tasks = 7;
+            progressBar->setMaximum(7);
+            progressBar1->setMaximum(7);
+            progressBar2->setMaximum(7);
+            progressBar3->setMaximum(7);
+        } else {
+            tasks = 10;
+            progressBar->setMaximum(10);
+            progressBar1->setMaximum(10);
+            progressBar2->setMaximum(10);
+            progressBar3->setMaximum(10);
+        }
+        difficultyChoosen = true;
+    }
+    } else {
+        QMessageBox::critical(centralWidget, "Упс!", "Сложность уже выбрана");
+    }
+}
+
+void MainWindow::showInfo() {
+    infomessage =
+        "<b>Сложность: </b>" + currentDifficulty + "<br>"
+                                                   "<b> Количество выполненных грамматик: </b>" + QString::number(count1) + "<br>"
+                                    "<b> Количество выполненных переводов: </b>" + QString::number(count) + "<br>";
+    QMessageBox::information(centralWidget, "Информация", infomessage);
 }

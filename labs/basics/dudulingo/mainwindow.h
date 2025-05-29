@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QMenuBar>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QStackedWidget>
@@ -22,10 +23,27 @@
 #include <QProgressBar>
 #include <QTimer>
 #include <QShortcut>
+#include <QDialogButtonBox>
+#include <QDialog>
 #include <random>
 #include <set>
 #include <algorithm>
 #include "vectors.h"
+
+class DifficultyDialog : public QDialog {
+    Q_OBJECT
+
+public:
+    explicit DifficultyDialog(QString currentDifficulty = "Средне", QWidget *parent = nullptr);
+    QString selectedDifficulty() const;
+
+private:
+    QRadioButton *easyRadio;
+    QRadioButton *mediumRadio;
+    QRadioButton *hardRadio;
+};
+
+
 
 class MainWindow : public QMainWindow
 {
@@ -34,6 +52,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+
 
 private slots:
     void showSentence();
@@ -48,6 +67,8 @@ private slots:
     void setIndex1();
     void setIndex2();
     void updateProfile();
+    void changeDifficulty();
+    void showInfo();
 
 private:
     QWidget *centralWidget;
@@ -100,5 +121,10 @@ private:
     QString threemoremessage;
     QShortcut *shortcut;
     QLabel *label2;
+    QMenu *settingsMenu;
+    QString currentDifficulty;
+    int tasks = 7;
+    bool difficultyChoosen = false;
+    QString infomessage;
 };
 #endif // MAINWINDOW_H
